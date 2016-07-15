@@ -72,7 +72,8 @@ directiveModule.directive('ngDropdownMultiselect', ['$filter', '$document', '$co
                     onSelectAll: angular.noop,
                     onDeselectAll: angular.noop,
                     onInitDone: angular.noop,
-                    onMaxSelectionReached: angular.noop
+                    onMaxSelectionReached: angular.noop,
+                    onSelectionChanged: angular.noop	// Gp
                 };
 
                 $scope.settings = {
@@ -152,7 +153,7 @@ directiveModule.directive('ngDropdownMultiselect', ['$filter', '$document', '$co
                         var parentFound = false;
 
                         while (angular.isDefined(target) && target !== null && !parentFound) {
-                            if (_.contains(target.className.split(' '), 'multiselect-parent') && !parentFound) {
+                            if (_.includes(target.className.split(' '), 'multiselect-parent') && !parentFound) {
                                 if(target === $dropdownTrigger) {
                                     parentFound = true;
                                 }
@@ -224,17 +225,19 @@ directiveModule.directive('ngDropdownMultiselect', ['$filter', '$document', '$co
                     return '';
                 };
 
-                $scope.selectAll = function () {
+                $scope.selectAll = function (sendEvent) {
+                	if (sendEvent === undefined) sendEvent = true;	// Gp
                     $scope.deselectAll(false);
                     $scope.externalEvents.onSelectAll();
 
                     angular.forEach($scope.options, function (value) {
-                        $scope.setSelectedItem(value[$scope.settings.idProp], true);
+                        $scope.setSelectedItem(value[$scope.settings.idProp], true, false);	// Gp
                     });
+                    if (sendEvent) $scope.externalEvents.onSelectionChanged();	// Gp
                 };
 
                 $scope.deselectAll = function (sendEvent) {
-                    sendEvent = sendEvent || true;
+                    if (sendEvent === undefined) sendEvent = true;	// Gp - there was a bug: sendEvent = sendEvent || true;
 
                     if (sendEvent) {
                         $scope.externalEvents.onDeselectAll();
@@ -245,9 +248,12 @@ directiveModule.directive('ngDropdownMultiselect', ['$filter', '$document', '$co
                     } else {
                         $scope.selectedModel.splice(0, $scope.selectedModel.length);
                     }
+                    if (sendEvent) $scope.externalEvents.onSelectionChanged();	// Gp
                 };
 
-                $scope.setSelectedItem = function (id, dontRemove) {
+                $scope.setSelectedItem = function (id, dontRemove, sendEvent) {
+                    if (sendEvent === undefined) sendEvent = true;	// Gp
+
                     var findObj = getFindObj(id);
                     var finalObj = null;
 
@@ -260,8 +266,9 @@ directiveModule.directive('ngDropdownMultiselect', ['$filter', '$document', '$co
                     if ($scope.singleSelection) {
                         clearObject($scope.selectedModel);
                         angular.extend($scope.selectedModel, finalObj);
-                        $scope.externalEvents.onItemSelect(finalObj);
+                        if (sendEvent) $scope.externalEvents.onItemSelect(finalObj);
                         if ($scope.settings.closeOnSelect) $scope.open = false;
+                        if (sendEvent) $scope.externalEvents.onSelectionChanged();	// Gp
 
                         return;
                     }
@@ -272,11 +279,12 @@ directiveModule.directive('ngDropdownMultiselect', ['$filter', '$document', '$co
 
                     if (!dontRemove && exists) {
                         $scope.selectedModel.splice(_.findIndex($scope.selectedModel, findObj), 1);
-                        $scope.externalEvents.onItemDeselect(findObj);
+                        if (sendEvent) $scope.externalEvents.onItemDeselect(findObj);	// Gp
                     } else if (!exists && ($scope.settings.selectionLimit === 0 || $scope.selectedModel.length < $scope.settings.selectionLimit)) {
                         $scope.selectedModel.push(finalObj);
-                        $scope.externalEvents.onItemSelect(finalObj);
+                        if (sendEvent) $scope.externalEvents.onItemSelect(finalObj);	// Gp
                     }
+                    if (sendEvent) $scope.externalEvents.onSelectionChanged();	// Gp
                     if ($scope.settings.closeOnSelect) $scope.open = false;
                 };
 
